@@ -10,33 +10,82 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
+import torchvision.models as models
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
 
 from torch.utils.data import DataLoader
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super(NeuralNetwork, self).__init__()
-        self.resnet = torchvision.models.resnet34(pretrained=False)
-        num_ftrs = self.resnet.fc.in_features
-        self.resnet.fc = nn.Linear(num_ftrs, 100)
+        self.resnet = models.resnet18(pretrained=False)
+        num_in_features = self.resnet.fc.in_features
+        self.resnet.fc = nn.Linear(num_in_features, 10)
 
     def forward(self, x):
-        return self.resnet(x)
+        x = self.resnet.conv1(x)
+        x = self.resnet.bn1(x)
+        x = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)
+
+        x = self.resnet.layer1(x)
+        x = self.resnet.layer2(x)
+        x = self.resnet.layer3(x)
+        x = self.resnet.layer4(x)
+
+        x = self.resnet.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.resnet.fc(x)
+        return x
+
+def train(model, device, train_loader, optimizer, criterion):
+    model.train()
+    running_loss = 0.0
+    for batch_idx, (inputs, targets) in enumerate(train_loader):
+        inputs, targets = inputs.to(device), targets.to(device)
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item() * inputs.size(0)
+    epoch_loss = running_loss / len(train_loader.dataset)
+    return epoch_loss
+
+def validate(model, device, val_loader, criterion):
+    model.eval()
+    running_loss = 0.0
+    correct = 0
+    with torch.no_grad():
+        for inputs, targets in val_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            running_loss += loss.item() * inputs.size(0)
+            preds = outputs.argmax(dim=1)
+            correct += torch.sum(preds == targets)
+
+    epoch_loss = running_loss / len(val_loader.dataset)
+    accuracy = correct.float() / len(val_loader.dataset)
+
+    return epoch_loss, accuracy
 
 def read_data():
     # 这里可自行修改数据预处理，batch大小也可自行调整
     # 保持本地训练的数据读取和这里一致
-    transform_train = torchvision.transforms.Compose([
-        torchvision.transforms.RandomHorizontalFlip(),
-        torchvision.transforms.RandomCrop(32, padding=4),
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
-    ])
-    transform_test = torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010])
     ])
 
+    transform_val = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010])
+    ])
     dataset_train = torchvision.datasets.CIFAR10(root='../data/exp03', train=True, download=True, transform=torchvision.transforms.ToTensor())
     dataset_val = torchvision.datasets.CIFAR10(root='../data/exp03', train=False, download=False, transform=torchvision.transforms.ToTensor())
     data_loader_train = DataLoader(dataset=dataset_train, batch_size=256, shuffle=True)
@@ -44,45 +93,24 @@ def read_data():
     return dataset_train, dataset_val, data_loader_train, data_loader_val
 
 def main():
-    model = NeuralNetwork() # 若有参数则传入参数
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    parent_dir = os.path.dirname(current_dir)
-    num_epochs = 10
-    learning_rate = 0.1
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model = NeuralNetwork().to(device)
+
+    train_dataset, val_dataset, train_loader, val_loader = read_data()
+
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=5e-4)
+    optimizer = optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
 
-    dataset_train, dataset_val, data_loader_train, data_loader_val = read_data()
+    for epoch in range(100):
+        train_loss = train(model, device, train_loader, optimizer, criterion)
+        val_loss, val_acc = validate(model, device, val_loader, criterion)
+        print(f'Epoch [{epoch + 1}/100], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}')
 
-    model = model.to(device)
+    save_dir_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pth')
+    os.makedirs(save_dir_path, exist_ok=True)
+    torch.save(model.state_dict(), os.path.join(save_dir_path, 'model.pth'))
 
-    for epoch in range(num_epochs):
-        train_loss = 0
-        train_acc = 0
-        model.train()  # set the model to training mode
-
-        for i, (images, labels) in enumerate(data_loader_train):
-            images = images.to(device)
-            labels = labels.to(device)
-
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            train_loss += loss.item() * images.size(0)
-            _, predicted = torch.max(outputs.data, 1)
-            train_acc += (predicted == labels).sum().item()
-
-        train_loss = train_loss / len(dataset_train)
-        train_acc = train_acc / len(dataset_train)
-
-        print('Epoch {}, Train Loss: {:.4f}, Train Acc: {:.4f}'.format(epoch + 1, train_loss, train_acc))
-
-    model.load_state_dict(torch.load(parent_dir + '/pth/model.pth'))
     return model
 
 
