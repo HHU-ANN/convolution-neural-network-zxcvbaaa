@@ -2,116 +2,100 @@
 # 在自己电脑上训练好模型，保存参数，在这里读取模型参数（不要使用JIT读取），在main中返回读取了模型参数的模型
 
 import os
-
-os.system("sudo pip3 install torch")
-os.system("sudo pip3 install torchvision")
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-import torchvision.models as models
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
 
 from torch.utils.data import DataLoader
 
 class NeuralNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=10):
         super(NeuralNetwork, self).__init__()
-        self.resnet = models.resnet18(pretrained=False)
-        num_in_features = self.resnet.fc.in_features
-        self.resnet.fc = nn.Linear(num_in_features, 10)
+
+        # 定义卷积层和全连接层
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(64, 192, kernel_size=5, padding=2),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(192, 384, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(384, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2),
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
+        self.classifier = nn.Sequential(
+            nn.Dropout(),
+            nn.Linear(256 * 6 * 6, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+            nn.Linear(4096, num_classes),
+        )
 
     def forward(self, x):
-        x = self.resnet.conv1(x)
-        x = self.resnet.bn1(x)
-        x = self.resnet.relu(x)
-        x = self.resnet.maxpool(x)
-
-        x = self.resnet.layer1(x)
-        x = self.resnet.layer2(x)
-        x = self.resnet.layer3(x)
-        x = self.resnet.layer4(x)
-
-        x = self.resnet.avgpool(x)
+        x = self.features(x)
+        x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = self.resnet.fc(x)
+        x = self.classifier(x)
         return x
 
-def train(model, device, train_loader, optimizer, criterion):
-    model.train()
-    running_loss = 0.0
-    for batch_idx, (inputs, targets) in enumerate(train_loader):
-        inputs, targets = inputs.to(device), targets.to(device)
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = criterion(outputs, targets)
-        loss.backward()
-        optimizer.step()
-
-        running_loss += loss.item() * inputs.size(0)
-    epoch_loss = running_loss / len(train_loader.dataset)
-    return epoch_loss
-
-def validate(model, device, val_loader, criterion):
-    model.eval()
-    running_loss = 0.0
-    correct = 0
-    with torch.no_grad():
-        for inputs, targets in val_loader:
-            inputs, targets = inputs.to(device), targets.to(device)
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            running_loss += loss.item() * inputs.size(0)
-            preds = outputs.argmax(dim=1)
-            correct += torch.sum(preds == targets)
-
-    epoch_loss = running_loss / len(val_loader.dataset)
-    accuracy = correct.float() / len(val_loader.dataset)
-
-    return epoch_loss, accuracy
 
 def read_data():
-    # 这里可自行修改数据预处理，batch大小也可自行调整
-    # 保持本地训练的数据读取和这里一致
-    transform_train = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010])
-    ])
+    dataset_train = torchvision.datasets.CIFAR10(root='../data/exp03', train=True, download=True,
+                                                 transform=torchvision.transforms.Compose([
+                                                     torchvision.transforms.Resize((227, 227)),
+                                                     torchvision.transforms.ToTensor()
+                                                 ]))
+    dataset_val = torchvision.datasets.CIFAR10(root='../data/exp03', train=False, download=False,
+                                               transform=torchvision.transforms.Compose([
+                                                   torchvision.transforms.Resize((227, 227)),
+                                                   torchvision.transforms.ToTensor()
+                                               ]))
+    data_loader_train = DataLoader(dataset_train, batch_size=32, shuffle=True)
+    data_loader_val = DataLoader(dataset_val, batch_size=32, shuffle=False)
 
-    transform_val = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010])
-    ])
-    dataset_train = torchvision.datasets.CIFAR10(root='../data/exp03', train=True, download=True, transform=torchvision.transforms.ToTensor())
-    dataset_val = torchvision.datasets.CIFAR10(root='../data/exp03', train=False, download=False, transform=torchvision.transforms.ToTensor())
-    data_loader_train = DataLoader(dataset=dataset_train, batch_size=256, shuffle=True)
-    data_loader_val = DataLoader(dataset=dataset_val, batch_size=256, shuffle=False)
-    return dataset_train, dataset_val, data_loader_train, data_loader_val
+    return dataset_train, dataset_val, data_loader_train, data_loader_val # Assuming there are 10 classes
 
 def main():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    model = NeuralNetwork().to(device)
-
-    train_dataset, val_dataset, train_loader, val_loader = read_data()
-
+    model = torchvision.models.alexnet(pretrained=False, num_classes=10)
+    dataset_train, dataset_val, data_loader_train, data_loader_val = read_data()
+    num_classes = 10
+    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
 
-    for epoch in range(100):
-        train_loss = train(model, device, train_loader, optimizer, criterion)
-        val_loss, val_acc = validate(model, device, val_loader, criterion)
-        print(f'Epoch [{epoch + 1}/100], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}')
+    for epoch in range(10):
+        model.train()
+        for images, labels in data_loader_train:
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
-    save_dir_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pth')
-    os.makedirs(save_dir_path, exist_ok=True)
-    torch.save(model.state_dict(), os.path.join(save_dir_path, 'model.pth'))
+        model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for images, labels in data_loader_val:
+                outputs = model(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
 
+        accuracy = correct / total
+        print(f"Epoch {epoch+1}/{10} | Accuracy: {accuracy:.2%}")
+
+    torch.save(model.state_dict(), '../pth/model.pth')
     return model
+
 
 
 
