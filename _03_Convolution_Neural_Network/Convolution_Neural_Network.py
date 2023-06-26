@@ -1,6 +1,3 @@
-# 在该文件NeuralNetwork类中定义你的模型
-# 在自己电脑上训练好模型，保存参数，在这里读取模型参数（不要使用JIT读取），在main中返回读取了模型参数的模型
-
 import os
 import torch
 import torch.nn as nn
@@ -49,7 +46,7 @@ class NeuralNetwork(nn.Module):
 
 
 def read_data():
-    dataset_train = torchvision.datasets.CIFAR10(root='../data/exp03', train=True, download=True,
+    dataset_train = torchvision.datasets.CIFAR10(root='../data/exp03', train=True, download=False,
                                                  transform=torchvision.transforms.Compose([
                                                      torchvision.transforms.Resize((227, 227)),
                                                      torchvision.transforms.ToTensor()
@@ -71,7 +68,7 @@ def main():
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
 
-    for epoch in range(10):
+    for epoch in range(1):
         model.train()
         for images, labels in data_loader_train:
             optimizer.zero_grad()
@@ -93,8 +90,21 @@ def main():
         accuracy = correct / total
         print(f"Epoch {epoch+1}/{10} | Accuracy: {accuracy:.2%}")
 
+    # 保存模型参数
+
+    os.makedirs('../pth', exist_ok=True)
+
     torch.save(model.state_dict(), '../pth/model.pth')
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    model.load_state_dict(torch.load(parent_dir + '/pth/model.pth'))
+
     return model
+
+
+
+
 
 
 
