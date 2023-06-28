@@ -91,10 +91,10 @@ def main():
         print(f"Epoch {epoch+1}/{10} | Accuracy: {accuracy:.2%}")
 
     # 保存模型参数
-    # dir_path = 'D:/1杀菌中心/神经网络/gitcode/convolution-neural-network-zxcvbaaa/pth'
+    # dir_path = '../pth'
     # os.makedirs(dir_path, exist_ok=True)
     #
-    # torch.save(model.state_dict(), 'D:/1杀菌中心/神经网络/gitcode/convolution-neural-network-zxcvbaaa/pth/model.pth')
+    # torch.save(model.state_dict(), '../pth/model.pth')
     #
     # current_dir = os.path.dirname(os.path.abspath(__file__))
     # parent_dir = os.path.dirname(current_dir)
