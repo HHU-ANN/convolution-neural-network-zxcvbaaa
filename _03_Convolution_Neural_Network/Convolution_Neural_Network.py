@@ -62,13 +62,13 @@ def read_data():
     return dataset_train, dataset_val, data_loader_train, data_loader_val # Assuming there are 10 classes
 
 def main():
-    model = torchvision.models.alexnet(pretrained=False, num_classes=10)
+    model = NeuralNetwork()
     dataset_train, dataset_val, data_loader_train, data_loader_val = read_data()
     num_classes = 10
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
 
-    for epoch in range(1):
+    for epoch in range(10):
         model.train()
         for images, labels in data_loader_train:
             optimizer.zero_grad()
@@ -91,17 +91,16 @@ def main():
         print(f"Epoch {epoch+1}/{10} | Accuracy: {accuracy:.2%}")
 
     # 保存模型参数
-
-    os.makedirs('../pth', exist_ok=True)
-
-    torch.save(model.state_dict(), '../pth/model.pth')
-
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    parent_dir = os.path.dirname(current_dir)
-    model.load_state_dict(torch.load(parent_dir + '/pth/model.pth'))
+    # dir_path = 'D:/1杀菌中心/神经网络/gitcode/convolution-neural-network-zxcvbaaa/pth'
+    # os.makedirs(dir_path, exist_ok=True)
+    #
+    # torch.save(model.state_dict(), 'D:/1杀菌中心/神经网络/gitcode/convolution-neural-network-zxcvbaaa/pth/model.pth')
+    #
+    # current_dir = os.path.dirname(os.path.abspath(__file__))
+    # parent_dir = os.path.dirname(current_dir)
+    # model.load_state_dict(torch.load(parent_dir + '/pth/model.pth'))
 
     return model
-
 
 
 
