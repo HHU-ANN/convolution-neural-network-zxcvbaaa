@@ -68,7 +68,7 @@ def train(model, data_loader_train, data_loader_val):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-    for epoch in range(1):
+    for epoch in range(10):
         running_loss = 0.0
         model.train()
         for images, labels in data_loader_train:
