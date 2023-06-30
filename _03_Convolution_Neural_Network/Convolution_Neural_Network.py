@@ -129,8 +129,7 @@ def train(model, data_loader_train, data_loader_val):
         print(f"Epoch {epoch + 1}, Training Loss: {running_loss / len(data_loader_train)}")
 
         # Rest of the code remains the same
-
-
+    return model
 
 
 
