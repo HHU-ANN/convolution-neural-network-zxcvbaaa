@@ -18,7 +18,6 @@ import torchvision.models as models
 #
 #     def forward(self, x):
 #         x = self.resnet(x)
-#         return x
 
 class BasicBlock(nn.Module):
     expansion = 1
