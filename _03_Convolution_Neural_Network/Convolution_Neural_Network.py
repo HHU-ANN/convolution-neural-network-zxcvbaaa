@@ -16,7 +16,7 @@ import torchvision.models as models
 #         # Replace the last fully connected layer to match the number of classes
 #         self.resnet.fc = nn.Linear(512, num_classes)
 #
-#     def forward(self, x):
+#     def forward(self, 
 
 class BasicBlock(nn.Module):
     expansion = 1
