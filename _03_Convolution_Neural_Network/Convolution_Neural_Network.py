@@ -4,7 +4,21 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 from torch.utils.data import DataLoader
+import torchvision.models as models
 
+# class NeuralNetwork(nn.Module):
+#     def __init__(self, num_classes=10):
+#         super(NeuralNetwork, self).__init__()
+#         self.resnet = models.resnet18(pretrained=True)
+#         # Freeze all the layers of the pre-trained ResNet
+#         for param in self.resnet.parameters():
+#             param.requires_grad = False
+#         # Replace the last fully connected layer to match the number of classes
+#         self.resnet.fc = nn.Linear(512, num_classes)
+#
+#     def forward(self, x):
+#         x = self.resnet(x)
+#         return x
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -99,7 +113,7 @@ def read_data():
     data_loader_train = DataLoader(dataset=dataset_train, batch_size=256, shuffle=True)
     data_loader_val = DataLoader(dataset=dataset_val, batch_size=256, shuffle=False)
     return dataset_train, dataset_val, data_loader_train, data_loader_val
-    
+
 
 def main():
     model = NeuralNetwork()
