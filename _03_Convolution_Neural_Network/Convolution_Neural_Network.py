@@ -15,7 +15,6 @@ import torchvision.models as models
 #             param.requires_grad = False
 #         # Replace the last fully connected layer to match the number of classes
 #         self.resnet.fc = nn.Linear(512, num_classes)
-#
 #     def 
 
 class BasicBlock(nn.Module):
