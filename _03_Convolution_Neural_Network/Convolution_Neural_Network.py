@@ -1,10 +1,12 @@
+
+
+
 import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast, GradScaler
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -64,33 +66,19 @@ class ResNet(nn.Module):
         layers = []
         layers.append(block(self.in_channels, out_channels, stride))
         self.in_channels = out_channels * block.expansion
-        for _ in range(1, num_blocks):
+
+        # 减少重复的BasicBlock数量
+        num_blocks -= 1
+        for _ in range(num_blocks):
             layers.append(block(self.in_channels, out_channels))
+
         return nn.Sequential(*layers)
 
-    def forward(self, x):
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.maxpool(out)
 
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = self.layer4(out)
-
-        out = self.avgpool(out)
-        out = torch.flatten(out, 1)
-        out = self.fc(out)
-
-        return out
-
-
+# 创建具有较少层的ResNet模型
 def NeuralNetwork(num_classes=10):
-    return ResNet(BasicBlock, [2, 2, 2, 2], num_classes)
+    return ResNet(BasicBlock, [1, 1, 1, 1], num_classes)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = NeuralNetwork().to(device).half()
 
 def read_data():
     dataset_train = torchvision.datasets.CIFAR10(root='../data/exp03', train=True, download=True,
@@ -102,54 +90,46 @@ def read_data():
     return dataset_train, dataset_val, data_loader_train, data_loader_val
 
 
-
 def train(model, data_loader_train, data_loader_val):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-    scaler = GradScaler()
 
-    for epoch in range(10):
+    for epoch in range(20):
         running_loss = 0.0
         model.train()
         for images, labels in data_loader_train:
-            images = images.to(device).half()
-            labels = labels.to(device)
-
             optimizer.zero_grad()
-
-            with autocast():
-                output = model(images)
-                loss = criterion(output, labels)
-
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
+            output = model(images)
+            loss = criterion(output, labels)
+            loss.backward()
+            optimizer.step()
             running_loss += loss.item()
-
         print(f"Epoch {epoch + 1}, Training Loss: {running_loss / len(data_loader_train)}")
 
-        # Rest of the code remains the same
+        model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for images, labels in data_loader_val:
+                output = model(images)
+                _, predicted = torch.max(output.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+        accuracy = 100 * correct / total
+        print(f"Accuracy on validation set: {accuracy}%")
+
     return model
 
 
-
 def main():
-    torch.set_default_tensor_type(torch.cuda.HalfTensor if torch.cuda.is_available() else torch.FloatTensor)
     model = NeuralNetwork()
     dataset_train, dataset_val, data_loader_train, data_loader_val = read_data()
-
     model = train(model, data_loader_train, data_loader_val)
-
     torch.save(model.state_dict(), '../pth/model.pth')
     current_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(current_dir)
     model.load_state_dict(torch.load(parent_dir + '/pth/model.pth'))
-
     return model
-
-
-
-
 
 
 
