@@ -99,38 +99,7 @@ def read_data():
     data_loader_train = DataLoader(dataset=dataset_train, batch_size=256, shuffle=True)
     data_loader_val = DataLoader(dataset=dataset_val, batch_size=256, shuffle=False)
     return dataset_train, dataset_val, data_loader_train, data_loader_val
-
-
-def train(model, data_loader_train, data_loader_val):
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-
-    for epoch in range(20):
-        running_loss = 0.0
-        model.train()
-        for images, labels in data_loader_train:
-            optimizer.zero_grad()
-            output = model(images)
-            loss = criterion(output, labels)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item()
-        print(f"Epoch {epoch + 1}, Training Loss: {running_loss / len(data_loader_train)}")
-
-        model.eval()
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for images, labels in data_loader_val:
-                output = model(images)
-                _, predicted = torch.max(output.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-        accuracy = 100 * correct / total
-        print(f"Accuracy on validation set: {accuracy}%")
-
-    return model
-
+    
 
 def main():
     model = NeuralNetwork()
