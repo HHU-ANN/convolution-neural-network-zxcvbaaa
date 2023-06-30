@@ -1,12 +1,10 @@
-
-
-
 import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
 from torch.utils.data import DataLoader
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -67,18 +65,31 @@ class ResNet(nn.Module):
         layers.append(block(self.in_channels, out_channels, stride))
         self.in_channels = out_channels * block.expansion
 
-        # 减少重复的BasicBlock数量
         num_blocks -= 1
-        for _ in range(num_blocks):
+        for _ in range(1, num_blocks):
             layers.append(block(self.in_channels, out_channels))
-
         return nn.Sequential(*layers)
 
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.maxpool(out)
 
-# 创建具有较少层的ResNet模型
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+
+        out = self.avgpool(out)
+        out = torch.flatten(out, 1)
+        out = self.fc(out)
+
+        return out
+
+
 def NeuralNetwork(num_classes=10):
-    return ResNet(BasicBlock, [1, 1, 1, 1], num_classes)
-
+    return ResNet(BasicBlock, [1,1,1,1], num_classes)
 
 def read_data():
     dataset_train = torchvision.datasets.CIFAR10(root='../data/exp03', train=True, download=True,
@@ -130,11 +141,3 @@ def main():
     parent_dir = os.path.dirname(current_dir)
     model.load_state_dict(torch.load(parent_dir + '/pth/model.pth'))
     return model
-
-
-
-
-
-
-
-
