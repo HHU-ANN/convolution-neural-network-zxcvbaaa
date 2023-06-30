@@ -134,9 +134,6 @@ def train(model, data_loader_train, data_loader_val):
 
 def main():
     model = NeuralNetwork()
-    dataset_train, dataset_val, data_loader_train, data_loader_val = read_data()
-    model = train(model, data_loader_train, data_loader_val)
-    torch.save(model.state_dict(), '../pth/model.pth')
     current_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(current_dir)
     model.load_state_dict(torch.load(parent_dir + '/pth/model.pth'))
