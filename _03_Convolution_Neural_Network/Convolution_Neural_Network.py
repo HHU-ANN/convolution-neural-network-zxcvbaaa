@@ -101,7 +101,6 @@ class ResNet(nn.Module):
 
         return out
 
-
 def NeuralNetwork(num_classes=10):
     return ResNet(BasicBlock, [1,1,1,1], num_classes)
 
