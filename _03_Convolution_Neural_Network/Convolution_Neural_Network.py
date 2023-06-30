@@ -54,7 +54,6 @@ class BasicBlock(nn.Module):
 
         return out
 
-
 # ResNet Architecture
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10):
